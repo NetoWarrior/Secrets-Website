@@ -59,8 +59,8 @@ passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
 passport.use(new GoogleStrategy({
-    clientID:CLIENT_ID,
-    clientSecret:CLIENT_SECRET,
+    clientID:process.env.CLIENT_ID,
+    clientSecret:process.env.CLIENT_SECRET,
     callbackURL: "http://localhost:3000/auth/google/secrets"
     //userProfileURL:"https://wwww.googleapis.com/oauth2/v3/userinfo"
   },
