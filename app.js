@@ -10,12 +10,7 @@ const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const findOrCreate = require("mongoose-findorcreate")
-//const md5 = require("md5")
 
-// const bcrypt = require("bcrypt");
-// const saltRounds = 10;
-
-//userSchema.plugin(encrypt,{secret : process.env.SECRET, encryptedFields: ['password'] });
 
 const app = express()
 
@@ -45,7 +40,9 @@ mongoose.set('useCreateIndex', true);
 
 const userSchema = new mongoose.Schema({
   username: String,
-  password: String
+  password: String,
+  googleId: String,
+  secret:String
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -55,8 +52,15 @@ const User = new mongoose.model("User", userSchema);
 
 passport.use(User.createStrategy());
 
-passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.deserializeUser());
+passport.serializeUser(function(user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(function(id, done) {
+  User.findById(id, function(err, user) {
+    done(err, user);
+  });
+});
 
 passport.use(new GoogleStrategy({
     clientID:process.env.CLIENT_ID,
@@ -95,11 +99,40 @@ app.get("/register", function(req, res) {
 })
 
 app.get("/secrets",function (req, res){
+  User.find({"secret":{$ne:null}},function (err, foundUsers){
+    if(err){
+      console.log(err);
+    } else {
+      if(foundUsers){
+        res.render("secrets",{usersWithSecrets:foundUsers})
+      }
+    }
+  })
+})
+
+app.get("/submit",function (req, res){
   if(req.isAuthenticated()){
-    res.render("secrets");
+    res.render("submit");
   } else {
     res.redirect("/login")
   }
+})
+
+app.post("/submit",function(req, res){
+  const submittedSecret = req.body.secret;
+
+  User.findById(req.user.id, function(err,foundUser){
+    if(!err){
+      if(foundUser){
+        foundUser.secret = submittedSecret;
+        foundUser.save(function(){
+          res.redirect("/secrets")
+        })
+      }
+    } else {
+      console.log(err);
+    }
+  })
 })
 
 app.post("/register", function(req, res) {
@@ -120,7 +153,7 @@ app.post("/register", function(req, res) {
 app.post("/login", function(req, res) {
     const user = new User({
       username: req.body.username,
-        password: req.body.password
+      password: req.body.password
   })
   req.login(user, function (err){
     if(!err){
